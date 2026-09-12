@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalkulator Jastip DD — Jastip Beli</title>
+<style>
+  :root{
+    --bg:#F3F5F2; --paper:#FFFFFF; --ink:#182230; --muted:#5E6B7A; --line:#D9DED8;
+    --green:#0F7A62; --green-deep:#0A5A48; --sun:#F6C544; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.45}
+  .wrap{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+  header{margin-bottom:18px}
+  .brand{font-size:13px;color:var(--muted)}
+  h1{font-size:26px;line-height:1.15;margin:4px 0 0;font-weight:800}
+
+  .tabs{display:flex;gap:6px;background:#E4E8E2;padding:4px;border-radius:999px;margin:16px 0 14px}
+  .tab{flex:1;border:0;background:transparent;padding:10px 12px;border-radius:999px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}
+  .tab.active{background:var(--paper);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .tab:disabled{cursor:default;opacity:.6}
+  .tab small{display:block;font-size:11px;font-weight:500}
+
+  /* pilihan mode di dalam Jastip Beli */
+  .mode{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .mode button{border:1.5px solid var(--line);background:var(--paper);border-radius:12px;padding:12px;font:inherit;text-align:left;cursor:pointer;color:var(--ink)}
+  .mode button b{display:block;font-weight:700}
+  .mode button span{font-size:12px;color:var(--muted)}
+  .mode button.active{border-color:var(--green);background:#E3F1EC}
+  .mode button.active span{color:var(--green-deep)}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px;margin-bottom:14px}
+  label{display:block;font-weight:600;margin-bottom:6px}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+
+  .money{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .money:focus-within{border-color:var(--green);box-shadow:0 0 0 3px rgba(15,122,98,.15)}
+  .money span{padding:0 12px;color:var(--muted);font-weight:600;border-right:1px solid var(--line);align-self:stretch;display:flex;align-items:center;background:#FAFBF9}
+  .money input{flex:1;border:0;outline:0;padding:14px 12px;font:inherit;font-size:22px;font-weight:700;min-width:0;background:transparent}
+
+  .stepper{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;width:max-content}
+  .stepper button{width:48px;height:48px;border:0;background:#FAFBF9;font-size:22px;font-weight:700;cursor:pointer;color:var(--green-deep)}
+  .stepper button:active{background:#E9F2EE}
+  .stepper output{width:64px;text-align:center;font-size:20px;font-weight:700}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  .row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .k{color:var(--muted)}
+  .row .k b{display:block;color:var(--ink);font-weight:600}
+  .row .k span{font-size:13px}
+  .row .v{font-weight:700;white-space:nowrap}
+  .tier{display:inline-block;font-size:12px;font-weight:600;color:var(--green-deep);background:#E3F1EC;padding:2px 8px;border-radius:999px;margin-top:4px}
+
+  .total{background:var(--green-deep);color:#fff;border:0}
+  .total .lbl{font-size:14px;opacity:.85}
+  .total .num{font-size:34px;font-weight:800;letter-spacing:-.5px;margin-top:2px;line-height:1.1}
+  .total .sub{font-size:13px;opacity:.85;margin-top:8px}
+  .total .num.warn{font-size:18px;color:var(--sun)}
+  .actions{display:flex;gap:10px;margin-top:14px}
+  .btn{flex:1;border:0;border-radius:10px;padding:13px;font:inherit;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--sun);color:var(--ink)}
+  .btn.ghost{background:transparent;border:1.5px solid rgba(255,255,255,.5);color:#fff}
+  .btn:active{transform:translateY(1px)}
+
+  details{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);padding:0 16px;margin-bottom:12px}
+  summary{cursor:pointer;padding:14px 0;font-weight:700;list-style:none;display:flex;justify-content:space-between}
+  summary::after{content:"+";color:var(--muted);font-weight:400}
+  details[open] summary::after{content:"–"}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px}
+  th,td{text-align:left;padding:8px 4px;border-top:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px;border-top:0}
+  td:last-child,th:last-child{text-align:right}
+  tr.hit td{background:#E3F1EC;font-weight:700}
+  .note{font-size:13px;color:var(--muted);padding-bottom:14px}
+  .hidden{display:none}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Jastip DD · Surabaya → Ende</div>
+    <h1>Kalkulator Jastip</h1>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" role="tab">Jastip Beli</button>
+    <button class="tab" role="tab" disabled>Jastip Kirim <small>segera hadir</small></button>
+  </div>
+
+  <div class="mode">
+    <button id="modeBeliBtn" class="active"><b>Beli barang</b><span>Fee dari total belanja</span></button>
+    <button id="modeCekBtn"><b>Cek barang saja</b><span>Survey tanpa membeli</span></button>
+  </div>
+
+  <!-- ================= MODE BELI ================= -->
+  <section id="secBeli">
+    <div class="card">
+      <label for="harga">Total harga barang yang dibeli</label>
+      <div class="money"><span>Rp</span><input id="harga" inputmode="numeric" placeholder="0" autocomplete="off"></div>
+      <div class="hint">Masukkan total belanja di Surabaya, minimal Rp 10.000.</div>
+    </div>
+
+    <div class="card">
+      <label>Jumlah pengangkutan ke lokasi penitipan</label>
+      <div class="stepper">
+        <button type="button" data-step="angkut" data-d="-1" aria-label="Kurangi">−</button>
+        <output id="angkut">1</output>
+        <button type="button" data-step="angkut" data-d="1" aria-label="Tambah">+</button>
+      </div>
+      <div class="hint">1× angkut gratis (maks. muatan pick up). Angkut ke-2 dan seterusnya Rp 100.000 per angkut.</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><div class="k"><b>Harga barang</b></div><div class="v" id="rHarga">Rp 0</div></div>
+      <div class="row"><div class="k"><b>Fee operator</b><span class="tier" id="rTier">—</span></div><div class="v" id="rFee">Rp 0</div></div>
+      <div class="row"><div class="k"><b>Biaya angkut tambahan</b><span id="rAngkutKet">0 angkut tambahan</span></div><div class="v" id="rAngkut">Rp 0</div></div>
+    </div>
+
+    <div class="card total">
+      <div class="lbl">Total yang dibayar pelanggan</div>
+      <div class="num" id="rTotal">Rp 0</div>
+      <div class="sub" id="rSub"></div>
+      <div class="actions">
+        <button class="btn primary" data-copy="beli">Salin rincian</button>
+        <button class="btn ghost" data-reset="beli">Ulang</button>
+      </div>
+    </div>
+
+    <details>
+      <summary>Daftar tarif fee operator</summary>
+      <table id="tarif"><thead><tr><th>Harga barang</th><th>Fee</th></tr></thead><tbody></tbody></table>
+      <div class="note">Fee persentase dibulatkan ke atas ke ribuan terdekat.</div>
+    </details>
+  </section>
+
+  <!-- ================= MODE CEK BARANG ================= -->
+  <section id="secCek" class="hidden">
+    <div class="card">
+      <label>Lokasi yang akan disurvey</label>
+      <div class="two">
+        <div>
+          <div class="hint" style="margin:0 0 6px">Toko berbeda</div>
+          <div class="stepper">
+            <button type="button" data-step="toko" data-d="-1" aria-label="Kurangi toko">−</button>
+            <output id="toko">0</output>
+            <button type="button" data-step="toko" data-d="1" aria-label="Tambah toko">+</button>
+          </div>
+        </div>
+        <div>
+          <div class="hint" style="margin:0 0 6px">Mall berbeda</div>
+          <div class="stepper">
+            <button type="button" data-step="mall" data-d="-1" aria-label="Kurangi mall">−</button>
+            <output id="mall">0</output>
+            <button type="button" data-step="mall" data-d="1" aria-label="Tambah mall">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint">1 paket survey = maksimal 3 toko berbeda atau 2 mall berbeda. Di dalam 1 mall boleh cek beberapa stand.</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><div class="k"><b>Lokasi</b><span id="cLokasi">—</span></div><div class="v" id="cSlot">0 paket</div></div>
+      <div class="row"><div class="k"><b>Biaya admin</b><span id="cKet">—</span></div><div class="v" id="cAdmin">Rp 0</div></div>
+    </div>
+
+    <div class="card total">
+      <div class="lbl">Biaya admin dibayar di muka</div>
+      <div class="num" id="cTotal">Rp 0</div>
+      <div class="sub" id="cSub"></div>
+      <div class="actions">
+        <button class="btn primary" data-copy="cek">Salin rincian</button>
+        <button class="btn ghost" data-reset="cek">Ulang</button>
+      </div>
+    </div>
+
+    <details>
+      <summary>Aturan cek barang</summary>
+      <table>
+        <thead><tr><th>Ketentuan</th><th>Nilai</th></tr></thead>
+        <tbody>
+          <tr><td>Biaya admin per paket</td><td>Rp 50.000</td></tr>
+          <tr><td>Isi 1 paket</td><td>3 toko / 2 mall</td></tr>
+          <tr><td>Lebih dari itu</td><td>Dihitung paket berikutnya</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Campuran toko dan mall dihitung: 1 toko = ⅓ paket, 1 mall = ½ paket, lalu dibulatkan ke atas.</div>
+    </details>
+  </section>
+</div>
+
+<div class="toast" id="toast">Rincian tersalin</div>
+
+<script>
+// ===== ATURAN TARIF JASTIP BELI (ubah di sini kalau tarif berubah) =====
+const TARIF = [
+  { min: 10000,    max: 599000,   flat: 50000  },
+  { min: 600000,   max: 1099000,  flat: 100000 },
+  { min: 1100000,  max: 3499000,  pct: 10  },
+  { min: 3500000,  max: 7499000,  pct: 7   },
+  { min: 7500000,  max: 9499000,  pct: 5   },
+  { min: 9500000,  max: 12499000, pct: 4   },
+  { min: 12500000, max: 19999000, pct: 3   },
+  { min: 20000000, max: Infinity, pct: 2.5 },
+];
+const BIAYA_ANGKUT = 100000;   // per angkut tambahan
+const ANGKUT_GRATIS = 1;
+const MIN_HARGA = 10000;
+
+// ===== ATURAN CEK BARANG =====
+const ADMIN_CEK = 50000;       // per paket survey
+const TOKO_PER_PAKET = 3;
+const MALL_PER_PAKET = 2;
+
+// ===== UTIL =====
+const $ = id => document.getElementById(id);
+const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+const bulatRibuan = n => Math.ceil(n / 1000) * 1000;
+
+function cariTier(harga){ let t=null; for (const x of TARIF){ if (harga >= x.min) t = x; } return t; }
+function hitungFee(harga){
+  const t = cariTier(harga); if (!t) return { fee:0, tier:null };
+  return { fee: t.flat !== undefined ? t.flat : bulatRibuan(harga * t.pct / 100), tier: t };
+}
+function labelTier(t){
+  if (!t) return '—';
+  const range = t.max === Infinity ? `≥ ${t.min.toLocaleString('id-ID')}` : `${t.min.toLocaleString('id-ID')} – ${t.max.toLocaleString('id-ID')}`;
+  return t.flat !== undefined ? `Flat · ${range}` : `${t.pct}% · ${range}`;
+}
+// Paket survey: toko/3 + mall/2, dibulatkan ke atas
+function hitungPaket(toko, mall){
+  const slot = toko / TOKO_PER_PAKET + mall / MALL_PER_PAKET;
+  return Math.ceil(slot - 1e-9);
+}
+
+// ===== STATE =====
+const S = { harga:0, angkut:1, toko:0, mall:0 };
+const LIMIT = { angkut:[1,20], toko:[0,30], mall:[0,20] };
+
+// ===== RENDER BELI =====
+function renderBeli(){
+  const {fee, tier} = hitungFee(S.harga);
+  const tambahan = Math.max(0, S.angkut - ANGKUT_GRATIS);
+  const biayaAngkut = tambahan * BIAYA_ANGKUT;
+  const total = S.harga + fee + biayaAngkut;
+  const valid = S.harga >= MIN_HARGA;
+
+  $('rHarga').textContent = rp(S.harga);
+  $('rFee').textContent = valid ? rp(fee) : 'Rp 0';
+  $('rTier').textContent = valid ? labelTier(tier) : (S.harga > 0 ? 'di bawah minimum' : '—');
+  $('rAngkut').textContent = rp(biayaAngkut);
+  $('rAngkutKet').textContent = `${tambahan} angkut tambahan × ${rp(BIAYA_ANGKUT)}`;
+  $('angkut').textContent = S.angkut;
+
+  const num = $('rTotal');
+  if (valid){ num.textContent = rp(total); num.classList.remove('warn'); $('rSub').textContent = 'Belum termasuk ongkos kirim Surabaya → Ende.'; }
+  else { num.textContent = S.harga > 0 ? 'Minimal belanja Rp 10.000' : 'Masukkan harga barang'; num.classList.add('warn'); $('rSub').textContent = ''; }
+
+  document.querySelectorAll('#tarif tbody tr').forEach((tr,i)=> tr.classList.toggle('hit', valid && TARIF[i] === tier));
+}
+
+// ===== RENDER CEK BARANG =====
+function renderCek(){
+  const paket = hitungPaket(S.toko, S.mall);
+  const admin = paket * ADMIN_CEK;
+  $('toko').textContent = S.toko; $('mall').textContent = S.mall;
+
+  const bagian = [];
+  if (S.toko) bagian.push(`${S.toko} toko`);
+  if (S.mall) bagian.push(`${S.mall} mall`);
+  $('cLokasi').textContent = bagian.length ? bagian.join(' + ') : 'belum dipilih';
+  $('cSlot').textContent = `${paket} paket`;
+  $('cKet').textContent = `${paket} paket × ${rp(ADMIN_CEK)}`;
+  $('cAdmin').textContent = rp(admin);
+
+  const num = $('cTotal');
+  if (paket > 0){ num.textContent = rp(admin); num.classList.remove('warn'); $('cSub').textContent = 'Berlaku untuk survey saja. Bila jadi beli, fee Jastip Beli dihitung terpisah.'; }
+  else { num.textContent = 'Pilih jumlah toko atau mall'; num.classList.add('warn'); $('cSub').textContent = ''; }
+}
+function renderAll(){ renderBeli(); renderCek(); }
+
+// ===== MODE =====
+function setMode(m){
+  const cek = m === 'cek';
+  $('secBeli').classList.toggle('hidden', cek);
+  $('secCek').classList.toggle('hidden', !cek);
+  $('modeBeliBtn').classList.toggle('active', !cek);
+  $('modeCekBtn').classList.toggle('active', cek);
+}
+$('modeBeliBtn').onclick = () => setMode('beli');
+$('modeCekBtn').onclick = () => setMode('cek');
+
+// ===== INPUT HARGA dengan pemisah ribuan =====
+const inHarga = $('harga');
+inHarga.addEventListener('input', e => {
+  const digits = e.target.value.replace(/\D/g,'').slice(0,12);
+  S.harga = digits ? parseInt(digits,10) : 0;
+  e.target.value = S.harga ? S.harga.toLocaleString('id-ID') : '';
+  renderBeli();
+});
+
+// ===== SEMUA STEPPER (angkut, toko, mall) =====
+document.querySelectorAll('[data-step]').forEach(b => {
+  b.onclick = () => {
+    const k = b.dataset.step, d = +b.dataset.d, [lo,hi] = LIMIT[k];
+    S[k] = Math.min(hi, Math.max(lo, S[k] + d));
+    renderAll();
+  };
+});
+
+// ===== RESET =====
+document.querySelectorAll('[data-reset]').forEach(b => {
+  b.onclick = () => {
+    if (b.dataset.reset === 'beli'){ S.harga = 0; S.angkut = 1; inHarga.value = ''; renderBeli(); inHarga.focus(); }
+    else { S.toko = 0; S.mall = 0; renderCek(); }
+  };
+});
+
+// ===== SALIN =====
+document.querySelectorAll('[data-copy]').forEach(b => {
+  b.onclick = async () => {
+    let teks;
+    if (b.dataset.copy === 'beli'){
+      if (S.harga < MIN_HARGA) return toast('Isi harga barang dulu');
+      const {fee, tier} = hitungFee(S.harga);
+      const tambahan = Math.max(0, S.angkut - ANGKUT_GRATIS), biayaAngkut = tambahan * BIAYA_ANGKUT;
+      teks = `*Jastip DD — Rincian Jastip Beli*
+Harga barang: ${rp(S.harga)}
+Fee operator (${tier.flat!==undefined ? 'flat' : tier.pct+'%'}): ${rp(fee)}
+Angkut tambahan (${tambahan}×): ${rp(biayaAngkut)}
+*Total: ${rp(S.harga+fee+biayaAngkut)}*
+_Belum termasuk ongkir Surabaya → Ende_`;
+    } else {
+      const paket = hitungPaket(S.toko, S.mall);
+      if (!paket) return toast('Pilih jumlah toko atau mall dulu');
+      const lokasi = [S.toko ? `${S.toko} toko` : '', S.mall ? `${S.mall} mall` : ''].filter(Boolean).join(' + ');
+      teks = `*Jastip DD — Cek Barang (Survey)*
+Lokasi: ${lokasi}
+Paket survey: ${paket} paket (1 paket = 3 toko / 2 mall)
+*Biaya admin di muka: ${rp(paket*ADMIN_CEK)}*
+_Bila jadi beli, fee Jastip Beli dihitung terpisah_`;
+    }
+    try { await navigator.clipboard.writeText(teks); toast('Rincian tersalin'); }
+    catch { toast('Tidak bisa menyalin di sini'); }
+  };
+});
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600); }
+
+// ===== TABEL TARIF BELI =====
+(function(){
+  const tb = document.querySelector('#tarif tbody');
+  TARIF.forEach(t => {
+    const range = t.max === Infinity ? `${t.min.toLocaleString('id-ID')} ke atas` : `${t.min.toLocaleString('id-ID')} – ${t.max.toLocaleString('id-ID')}`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${range}</td><td>${t.flat !== undefined ? rp(t.flat) : t.pct+'%'}</td>`;
+    tb.appendChild(tr);
+  });
+})();
+
+renderAll();
+</script>
+</body>
+</html>
