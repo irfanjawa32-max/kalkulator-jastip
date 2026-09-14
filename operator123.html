@@ -445,4 +445,55 @@ async function simpanTransaksi(){
       st.textContent = 'Tersimpan di HP & Google Sheets ✓'; st.className='status ok';
       muatRiwayat();
     } else {
-      st.textContent = 'Tersimpan di HP (Google Sheets menolak — coba Sinkronkan nanti)'; st.cl
+      st.textContent = 'Tersimpan di HP (Google Sheets menolak — coba Sinkronkan nanti)'; st.className='status err';
+    }
+  }catch(err){
+    st.textContent = 'Tersimpan di HP (belum tersambung internet — coba Sinkronkan nanti)'; st.className='status err';
+  }
+}
+
+async function sinkronkanSemua(){
+  if (WEBAPP_URL.includes('GANTI_DENGAN_URL')){ toast('Isi WEBAPP_URL dulu di kode'); return; }
+  const arr = getLokal();
+  const pending = arr.filter(x=>!x.synced);
+  if (!pending.length){ toast('Semua sudah tersinkron'); return; }
+  let sukses = 0;
+  for (const item of pending){
+    try{
+      const res = await fetch(WEBAPP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(item) });
+      const data = await res.json();
+      if (data.ok){ item.synced = true; sukses++; }
+    }catch(e){ /* masih offline, coba lagi nanti */ }
+  }
+  setLokal(arr); renderRiwayatLokal();
+  toast(`${sukses} dari ${pending.length} transaksi tersinkron`);
+  if (sukses) muatRiwayat();
+}
+
+async function muatRiwayat(){
+  const box = $('riwayatList');
+  if (WEBAPP_URL.includes('GANTI_DENGAN_URL')){ box.innerHTML = '<div class="hint">Isi dulu WEBAPP_URL di kode.</div>'; return; }
+  box.innerHTML = '<div class="hint">Memuat...</div>';
+  try{
+    const res = await fetch(WEBAPP_URL);
+    const data = await res.json();
+    const rows = data.rows || [];
+    box.innerHTML = rows.length ? rows.map(r => `
+      <div class="row riwayat-item"><div class="k"><b>${r['No Nota']||'-'}</b><span>${r['Pelanggan']||''} · ${r['Tanggal']||''}</span></div><div class="v">${rp(r['Total']||0)}</div></div>
+    `).join('') : '<div class="hint">Belum ada transaksi.</div>';
+  }catch(err){
+    box.innerHTML = '<div class="hint">Gagal memuat riwayat.</div>';
+  }
+}
+
+$('simpanBtn').onclick = simpanTransaksi;
+$('muatRiwayatBtn').onclick = muatRiwayat;
+$('sinkronBtn').onclick = sinkronkanSemua;
+$('riwayatDetails').addEventListener('toggle', function(){ if(this.open) muatRiwayat(); });
+renderRiwayatLokal();
+
+renderAll();
+</script>
+</body>
+</html>
+
