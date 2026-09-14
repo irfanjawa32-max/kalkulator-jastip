@@ -76,12 +76,20 @@
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+
+  .status{font-size:13px;color:var(--muted);margin-top:8px}
+  .status.ok{color:var(--green-deep);font-weight:600}
+  .status.err{color:#B3261E;font-weight:600}
+  .riwayat-item{font-size:13px}
+
   /* ==== cetak: hanya nota yang tampil ==== */
   @media print{
     body *{visibility:hidden}
     #notaBox, #notaBox *{visibility:visible}
     #notaBox{position:absolute;left:0;top:0;width:100%;border:0}
   }
+  .no-print{}
+  @media print{ .no-print{display:none!important} }
 </style>
 </head>
 <body>
@@ -188,6 +196,12 @@
     <div class="nota" id="notaText"></div>
   </div>
 
+  <div class="card no-print">
+    <h2>Simpan ke Google Sheets</h2>
+    <button class="btn dark" id="simpanBtn" style="width:100%">Simpan Transaksi</button>
+    <div class="status" id="statusSimpan">Belum disimpan</div>
+  </div>
+
   <div class="actions">
     <button class="btn primary" id="copyNota">Salin Nota</button>
     <button class="btn dark" id="printNota">Cetak Nota</button>
@@ -195,6 +209,18 @@
   <div class="actions">
     <button class="btn ghost" id="resetAll">Ulang Semua</button>
   </div>
+
+  <details class="card no-print" style="padding:0 16px" id="riwayatLokalDetails" open>
+    <summary>Riwayat di HP Ini</summary>
+    <button class="btn ghost" id="sinkronBtn" style="margin:10px 0;width:100%">Sinkronkan</button>
+    <div id="riwayatLokalList"></div>
+  </details>
+
+  <details class="card no-print" style="padding:0 16px" id="riwayatDetails">
+    <summary>Riwayat Transaksi (Google Sheets)</summary>
+    <button class="btn ghost" id="muatRiwayatBtn" style="margin:10px 0">Muat / Refresh</button>
+    <div id="riwayatList"></div>
+  </details>
 </div>
 
 <div class="toast" id="toast">Tersalin</div>
@@ -350,7 +376,73 @@ $('resetAll').onclick = () => {
 };
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600); }
 
-renderAll();
-</script>
-</body>
-</html>
+
+// ===== KONEKSI GOOGLE SHEETS =====
+const WEBAPP_URL = "GANTI_DENGAN_URL_WEBAPP_KAMU"; // contoh: https://script.google.com/macros/s/xxx/exec
+
+function buildPayload(){
+  const nama = $('namaPelanggan').value.trim();
+  const noNota = $('noNota').value.trim();
+  const status = document.querySelector('input[name=status]:checked').value;
+  const catatan = $('catatan').value.trim();
+  let layanan, harga=0, fee=0, angkut=0, lokasi='', paket=0, total=0;
+  if (S.mode === 'beli'){
+    const {fee:f} = hitungFee(S.harga);
+    const tambahan = Math.max(0, S.angkut - ANGKUT_GRATIS);
+    layanan = 'Jastip Beli'; harga = S.harga; fee = f; angkut = tambahan;
+    total = S.harga + f + tambahan*BIAYA_ANGKUT;
+  } else {
+    const p = hitungPaket(S.toko, S.mall);
+    layanan = 'Cek Barang';
+    lokasi = [S.toko?`${S.toko} toko`:'', S.mall?`${S.mall} mall`:''].filter(Boolean).join(' + ');
+    paket = p; total = p*ADMIN_CEK;
+  }
+  return { noNota, tanggal: tanggalHariIni(), pelanggan: nama, layanan, harga, fee, angkut, lokasi, paket, total, status, catatan };
+}
+
+// ===== RIWAYAT LOKAL (localStorage — selalu berhasil, tanpa internet) =====
+const LS_KEY = 'jdd_riwayat_lokal';
+function getLokal(){ try{ return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }catch(e){ return []; } }
+function setLokal(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+
+function renderRiwayatLokal(){
+  const arr = getLokal();
+  const box = $('riwayatLokalList');
+  box.innerHTML = arr.length ? arr.slice().reverse().map(it => `
+    <div class="row riwayat-item"><div class="k"><b>${it.noNota||'-'}</b><span>${it.pelanggan||''} · ${it.tanggal||''} · ${it.synced ? '✓ tersinkron' : '⏳ belum ke Sheets'}</span></div><div class="v">${rp(it.total||0)}</div></div>
+  `).join('') : '<div class="hint">Belum ada transaksi tersimpan di HP ini.</div>';
+  const pending = arr.filter(x=>!x.synced).length;
+  $('sinkronBtn').textContent = pending ? `Sinkronkan (${pending} belum terkirim)` : 'Semua sudah tersinkron';
+}
+
+async function simpanTransaksi(){
+  const st = $('statusSimpan');
+  const payload = buildPayload();
+
+  // 1) simpan ke HP dulu — ini selalu berhasil, tidak butuh internet
+  const arr = getLokal();
+  const entry = Object.assign({}, payload, { synced:false, waktu: Date.now() });
+  arr.push(entry);
+  setLokal(arr);
+  renderRiwayatLokal();
+  toast('Transaksi tersimpan di HP');
+  st.textContent = 'Tersimpan di HP — mencoba kirim ke Google Sheets...'; st.className='status';
+
+  // 2) coba kirim ke Google Sheets di belakang layar
+  if (WEBAPP_URL.includes('GANTI_DENGAN_URL')){
+    st.textContent = 'Tersimpan di HP (sambungan Google Sheets belum diatur)'; st.className='status ok';
+    return;
+  }
+  try{
+    const res = await fetch(WEBAPP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.ok){
+      entry.synced = true; setLokal(arr); renderRiwayatLokal();
+      st.textContent = 'Tersimpan di HP & Google Sheets ✓'; st.className='status ok';
+      muatRiwayat();
+    } else {
+      st.textContent = 'Tersimpan di HP (Google Sheets menolak — coba Sinkronkan nanti)'; st.cl
